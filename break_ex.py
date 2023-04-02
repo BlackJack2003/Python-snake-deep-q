@@ -127,6 +127,7 @@ csh = 1
 
 if len(argv)>1:
     opl=True
+    print("\nLoading new neural network...\n")
 
 def handle_exit(signum,frame):
     res = input("Save the data points(y/n):")
