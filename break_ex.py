@@ -142,30 +142,32 @@ while True:  # Run until solved
             hours, minutes = divmod(minutes, 60)
             print("\nCurrent Run Time:%d:%02d:%02d" % (hours, minutes, seconds)+f"\n{fpos}\n")
             if not opl:
-                if ol==2:
+                if ol>=2:
                     print("\n Trying to Load optimizer\n")
+                    a_model = model.copy()
+                    b_model = model_target.copy()
+                    opti__ = optimizer.copy()
+                    opl=True
                     try:
                         with open('./opt.pkl','rb') as f:
                             wts = pickle.load(f)
                         optimizer.set_weights(wts)
                         print("\nOptimizer loaded\n")
-                    except Exception as e:
-                        print("\nOptimizer not loaded due to:\n"+str(e))
-                        
-                    try:
                         a = keras.models.load_model('./mod1/m1.h5')
                         b = keras.models.load_model('./mod2/m2.h5')
                         epsilon_random_frames/=10
                         model=a
                         model_target=b
                         print("\nLoaded Models Succesfully\n")
+                        msnk=1
+                        pmsnk = 1
+                        mtot=1
                     except Exception as e:
-                        print('no save found due to:',e)
-                    msnk=1
-                    pmsnk = 1
-                    mtot=1
-                    opl=True
-                    ol+=1
+                        opl=False
+                        model = a_model
+                        model_target=b_model
+                        optimizer = opti__
+                        print("\nOptimizer and model not loaded due to:\n"+str(e))
                 else:  
                     ol+=1
                 
