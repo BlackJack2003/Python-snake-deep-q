@@ -124,11 +124,11 @@ class snake_board:
         d = self.check_death() 
         _ =abs(self.fx-self.h.cx) + abs(self.fy-self.h.cy)
         if eat==True:
-            rew=50*(self.size-1)
+            rew=50
         elif d:
             rew=-40
         else:
-            rew= 1 if _ < self.ps else -1
+            rew= .5 if _ < self.ps else -1
         self.ps = _
         return self.board,rew,d,self.size
     
