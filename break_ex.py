@@ -18,10 +18,10 @@ epsilon_min = 0.1  # Minimum epsilon greedy parameter
 epsilon_max = 0.8  # Maximum epsilon greedy parameter
 epsilon_interval = (epsilon_max - epsilon_min)  # Rate at which to reduce chance of random action being taken
 batch_size = 32  # Size of batch taken from replay buffer
-max_steps_per_episode = 1000
+max_steps_per_episode = 1500
 rfc=0
 ph=0
-fpos = [(1,1),(1,snake.size-2),(snake.size-2,1),(snake.size-2,snake.size-2),(snake.size//2,snake.size//2),(1,1),(1,snake.size-2),(snake.size-1,0),(snake.size-1,snake.size-1),(2,2)]
+fpos = [(1,1),(1,snake.size-2),(snake.size-2,snake.size-3),(snake.size-2,2),(snake.size//2,snake.size//2),(1,1),(1,snake.size-2),(snake.size-1,0),(snake.size-1,snake.size-1),(2,2)]
 # Use the Baseline Atari environment because of Deepmind helper functions]
 m = fpos.copy()
 env = snake.snake_board(fpos=m)
@@ -71,7 +71,7 @@ epsilon_random_frames = 1000
 epsilon_greedy_frames = 5000
 # Maximum replay length
 # Note: The Deepmind paper suggests 1000000 however this causes memory issues
-max_memory_length = 20000
+max_memory_length = 25000
 # Train the model after 4 actions
 update_after_actions = 4
 ol = 0
@@ -113,7 +113,10 @@ def save_t():
     model_target.save("./mod2/m2.h5")
     if opl:
         with open('./opt.pkl', 'wb') as f:
-            pickle.dump(optimizer.get_weights(),f)
+            m = optimizer.get_weights()
+            print(f"Length of weights:{len(m)}")
+            pickle.dump(m,f)
+
 
 csh = 1
 
@@ -139,7 +142,7 @@ while True:  # Run until solved
             hours, minutes = divmod(minutes, 60)
             print("\nCurrent Run Time:%d:%02d:%02d" % (hours, minutes, seconds)+f"\n{fpos}\n")
             if not opl:
-                if ol==1:
+                if ol==2:
                     print("\n Trying to Load optimizer\n")
                     try:
                         with open('./opt.pkl','rb') as f:
@@ -147,8 +150,8 @@ while True:  # Run until solved
                         optimizer.set_weights(wts)
                         print("\nOptimizer loaded\n")
                     except Exception as e:
-                        quit()
                         print("\nOptimizer not loaded due to:\n"+str(e))
+                        
                     try:
                         a = keras.models.load_model('./mod1/m1.h5')
                         b = keras.models.load_model('./mod2/m2.h5')
@@ -202,7 +205,6 @@ while True:  # Run until solved
         if frame_count % update_after_actions == 0 and len(done_history) > batch_size:
             # Get indices of samples for replay buffers
             indices = np.random.choice(range(len(done_history)), size=batch_size)
-
             # Using list comprehension to sample from replay buffer
             state_sample = np.array([state_history[i] for i in indices])
             state_next_sample = np.array([state_next_history[i] for i in indices])
@@ -242,9 +244,6 @@ while True:  # Run until solved
             template = "avg rew: {0:.2f} at episode {1}, frame count {2},Num rand frame: {3}, reward: {4:.2f},snake size:{5},epsilon:{6:0.2f},deaths: {7},current save:{8} ,max_size:{9}, max num of frame:{10}"
             print(template.format(mrh_, episode_count, frame_count,rfc,reward,snake_size,epsilon,deaths,msnk,mtot,max_f_d))
 
-        
-
-
         # Limit the state and reward history
         if len(rewards_history) > max_memory_length:
             del rewards_history[:1]
@@ -268,9 +267,9 @@ while True:  # Run until solved
                 strike+=1
     psnk=msnk
     episode_count += 1
-    if snake_size>=4 if fpos!=None else 5:  # Condition to consider the task solved
+    if snake_size>5 if fpos!=None else 5:  # Condition to consider the task solved
         save_t()
-        print("Solved at episode {}!".format(episode_count))
+        print("Solved at episode {}! at action number {}".format(episode_count,timestep))
         break
 
 
