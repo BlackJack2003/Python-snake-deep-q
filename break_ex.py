@@ -18,12 +18,13 @@ epsilon_min = 0.1  # Minimum epsilon greedy parameter
 epsilon_max = 0.8  # Maximum epsilon greedy parameter
 epsilon_interval = (epsilon_max - epsilon_min)  # Rate at which to reduce chance of random action being taken
 batch_size = 32  # Size of batch taken from replay buffer
-max_steps_per_episode = 2500
+max_steps_per_episode = 1000
 rfc=0
 ph=0
 fpos = [(1,1),(1,snake.size-2),(snake.size-2,1),(snake.size-2,snake.size-2),(snake.size//2,snake.size//2),(1,1),(1,snake.size-2),(snake.size-1,0),(snake.size-1,snake.size-1),(2,2)]
-# Use the Baseline Atari environment because of Deepmind helper functions
-env = snake.snake_board(fpos=fpos)
+# Use the Baseline Atari environment because of Deepmind helper functions]
+m = fpos.copy()
+env = snake.snake_board(fpos=m)
 # Warp the frames, grey scale, stake four frame and scale to smaller ratio
 
 num_actions = 4
@@ -32,11 +33,11 @@ def create_q_model():
     # Network defined by the Deepmind paper
     inputs = layers.Input(shape=(snake.size,snake.size,2,))
     # Convolutions on the frames on the screen
-    layer1 = layers.Conv2D(16, 8, strides=4, activation="relu")(inputs)
-    layer2 = layers.Conv2D(32, 4, strides=2, activation="relu")(layer1)
-    layer3 = layers.Conv2D(16, 3, strides=1, activation="relu")(layer2)
+    layer1 = layers.Conv2D(32, 8, strides=4, activation="relu")(inputs)
+    layer2 = layers.Conv2D(64, 4, strides=2, activation="relu")(layer1)
+    layer3 = layers.Conv2D(64, 3, strides=1, activation="relu")(layer2)
     layer4 = layers.Flatten()(layer3)
-    layer5 = layers.Dense(256, activation="relu")(layer4)
+    layer5 = layers.Dense(512, activation="relu")(layer4)
     layer6 = layers.Dense(128, activation="relu")(layer5)
     action = layers.Dense(num_actions, activation="linear")(layer6)
 
@@ -116,6 +117,10 @@ def save_t():
 
 csh = 1
 
+if len(argv)>1:
+    opl=True
+
+
 while True:  # Run until solved
     m = fpos.copy()
     state = np.array(env.reset(m))
@@ -132,18 +137,17 @@ while True:  # Run until solved
             seconds = time.time()-stime
             minutes, seconds = divmod(seconds, 60)
             hours, minutes = divmod(minutes, 60)
-            print("\nCurrent Run Time:%d:%02d:%02d\n" % (hours, minutes, seconds))
-            if ol!=2:
-                ol+=1
-            else:
-                if ol==2:
-                    print("/n Trying to Load optimizer\n")
+            print("\nCurrent Run Time:%d:%02d:%02d" % (hours, minutes, seconds)+f"\n{fpos}\n")
+            if not opl:
+                if ol==1:
+                    print("\n Trying to Load optimizer\n")
                     try:
                         with open('./opt.pkl','rb') as f:
                             wts = pickle.load(f)
                         optimizer.set_weights(wts)
                         print("\nOptimizer loaded\n")
                     except Exception as e:
+                        quit()
                         print("\nOptimizer not loaded due to:\n"+str(e))
                     try:
                         a = keras.models.load_model('./mod1/m1.h5')
@@ -159,7 +163,9 @@ while True:  # Run until solved
                     mtot=1
                     opl=True
                     ol+=1
-
+                else:  
+                    ol+=1
+                
         frame_count += 1
         if frame_count < epsilon_random_frames or epsilon > np.random.rand(1)[0]:
             if epsilon>1:
@@ -262,7 +268,7 @@ while True:  # Run until solved
                 strike+=1
     psnk=msnk
     episode_count += 1
-    if snake_size>=len(fpos)-1 if fpos!=None else 5:  # Condition to consider the task solved
+    if snake_size>=4 if fpos!=None else 5:  # Condition to consider the task solved
         save_t()
         print("Solved at episode {}!".format(episode_count))
         break
