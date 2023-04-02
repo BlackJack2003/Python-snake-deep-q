@@ -65,9 +65,9 @@ running_reward = 0
 episode_count = 0
 frame_count = 0
 # Number of frames to take random action and observe output
-epsilon_random_frames = 10000
+epsilon_random_frames = 1000
 # Number of frames for exploration
-epsilon_greedy_frames = 20000
+epsilon_greedy_frames = 5000
 # Maximum replay length
 # Note: The Deepmind paper suggests 1000000 however this causes memory issues
 max_memory_length = 20000
@@ -86,7 +86,7 @@ pshow =0
 max_f_d=0
 updated_q_values = []
 
-optimizer = keras.optimizers.Adam(learning_rate=0.00025, clipnorm=1.0)
+optimizer = keras.optimizers.Adam(learning_rate=0.0005, clipnorm=1.0)
 
 snake_size=1
 
