@@ -6,6 +6,7 @@ from keras import layers
 from sys import argv
 import time
 import copy
+import signal
 import pickle
 
 stime=time.time()
@@ -118,12 +119,20 @@ def save_t():
         pickle.dump(m,f)
     with open("./qvf.pkl",'wb') as f:
         pickle.dump(optimizer.get_config(),f)
+    with open('otdp.pkl','wb') as f:
+        m = (action_history,state_history,state_next_history,rewards_history,done_history,episode_reward_history,deaths,running_reward,episode_count,frame_count)
+        pickle.dump(m,f)
 
 csh = 1
 
 if len(argv)>1:
     opl=True
 
+def handle_exit(signum,frame):
+    res = input("Save the data points(y/n):")
+    if res.lower()=="y":
+        save_t()
+    quit()
 
 while True:  # Run until solved
     m = fpos.copy()
@@ -154,6 +163,9 @@ while True:  # Run until solved
                             wts = pickle.load(f)
                         with open("./qvf.pkl",'rb') as f:
                             idk__ = pickle.load(f)
+                        with open('otdp.pkl','rb') as f:
+                            m = pickle.load(f)
+                            action_history,state_history,state_next_history,rewards_history,done_history,episode_reward_history,deaths,running_reward,episode_count,frame_count = m
                         nopt = keras.optimizers.Adam.from_config(idk__)
                         nopt.set_weights(wts)
                         print("\nOptimizer loaded\n")
