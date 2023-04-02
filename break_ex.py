@@ -112,12 +112,12 @@ def eval_mod():
 def save_t():
     model.save("./mod1/m1.h5")
     model_target.save("./mod2/m2.h5")
-    if opl:
-        with open('./opt.pkl', 'wb') as f:
-            m = optimizer.get_weights()
-            print(f"Length of weights:{len(m)}")
-            pickle.dump(m,f)
-
+    with open('./opt.pkl', 'wb') as f:
+        m = optimizer.get_weights()
+        print(f"Length of weights:{len(m)}")
+        pickle.dump(m,f)
+    with open("./qvf.pkl",'wb') as f:
+        pickle.dump(optimizer.get_config(),f)
 
 csh = 1
 
@@ -134,7 +134,7 @@ while True:  # Run until solved
         # env.render(); Adding this line would show the attempts
         # of the agent in a pop up window.
         if frame_count%10000==0:
-            if opl==True:
+            if opl:
                 print("\nSaving model...\n")
                 save_t()
             msnk=1 #max size in save
@@ -145,24 +145,28 @@ while True:  # Run until solved
             if not opl:
                 if ol>=2:
                     print("\n Trying to Load optimizer\n")
-                    a_model = model.deepcopy()
-                    b_model = model_target.deepcopy()
-                    opti__ = optimizer.deepcopy()
+                    a_model = model
+                    b_model = model_target
+                    opti__ = optimizer
                     opl=True
                     try:
                         with open('./opt.pkl','rb') as f:
                             wts = pickle.load(f)
-                        optimizer.set_weights(wts)
+                        with open("./qvf.pkl",'rb') as f:
+                            idk__ = pickle.load(f)
+                        nopt = keras.optimizers.Adam.from_config(idk__)
+                        nopt.set_weights(wts)
                         print("\nOptimizer loaded\n")
                         a = keras.models.load_model('./mod1/m1.h5')
                         b = keras.models.load_model('./mod2/m2.h5')
                         epsilon_random_frames/=10
-                        model=a
-                        model_target=b
                         print("\nLoaded Models Succesfully\n")
                         msnk=1
                         pmsnk = 1
                         mtot=1
+                        model=a
+                        model_target=b
+                        optimizer=nopt
                     except Exception as e:
                         opl=False
                         model = a_model
