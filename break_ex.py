@@ -5,6 +5,7 @@ from tensorflow import keras
 from keras import layers
 from sys import argv
 import time
+import copy
 import pickle
 
 stime=time.time()
@@ -144,9 +145,9 @@ while True:  # Run until solved
             if not opl:
                 if ol>=2:
                     print("\n Trying to Load optimizer\n")
-                    a_model = model.copy()
-                    b_model = model_target.copy()
-                    opti__ = optimizer.copy()
+                    a_model = model.deepcopy()
+                    b_model = model_target.deepcopy()
+                    opti__ = optimizer.deepcopy()
                     opl=True
                     try:
                         with open('./opt.pkl','rb') as f:
