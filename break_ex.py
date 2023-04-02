@@ -134,6 +134,8 @@ def handle_exit(signum,frame):
         save_t()
     quit()
 
+signal.signal(signal.SIGINT, handle_exit)
+
 while True:  # Run until solved
     m = fpos.copy()
     state = np.array(env.reset(m))
