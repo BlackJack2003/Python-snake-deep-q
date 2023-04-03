@@ -35,9 +35,9 @@ def create_q_model():
     # Network defined by the Deepmind paper
     inputs = layers.Input(shape=(snake.size,snake.size,2,))
     # Convolutions on the frames on the screen
-    layer1 = layers.Conv2D(32, 8, strides=4, activation="relu")(inputs)
-    layer2 = layers.Conv2D(64, 4, strides=2, activation="relu")(layer1)
-    layer3 = layers.Conv2D(64, 3, strides=1, activation="relu")(layer2)
+    layer1 = layers.Conv2D(32, 2, strides=4, activation="relu")(inputs)
+    layer2 = layers.Conv2D(64, 2, strides=2, activation="relu")(layer1)
+    layer3 = layers.Conv2D(64, 1, strides=1, activation="relu")(layer2)
     layer4 = layers.Flatten()(layer3)
     layer5 = layers.Dense(512, activation="relu")(layer4)
     layer6 = layers.Dense(128, activation="relu")(layer5)
@@ -89,7 +89,7 @@ pshow =0
 max_f_d=0
 updated_q_values = []
 
-optimizer = keras.optimizers.Adam(learning_rate=0.0005, clipnorm=1.0)
+optimizer = keras.optimizers.Adam(learning_rate=0.00025, clipnorm=1.0)
 
 snake_size=1
 
@@ -119,9 +119,9 @@ def save_t():
         pickle.dump(m,f)
     with open("./qvf.pkl",'wb') as f:
         pickle.dump(optimizer.get_config(),f)
-    with open('otdp.pkl','wb') as f:
+    '''with open('otdp.pkl','wb') as f:
         m = (action_history,state_history,state_next_history,rewards_history,done_history,episode_reward_history,deaths,running_reward,episode_count,frame_count)
-        pickle.dump(m,f)
+        pickle.dump(m,f)'''
 
 csh = 1
 
@@ -153,7 +153,7 @@ while True:  # Run until solved
             seconds = time.time()-stime
             minutes, seconds = divmod(seconds, 60)
             hours, minutes = divmod(minutes, 60)
-            print("\nCurrent Run Time:%d:%02d:%02d" % (hours, minutes, seconds)+f"\n{fpos}\n")
+            print("\nCurrent Run Time:%d:%02d:%02d\nLength of optimizer weights:%d\n" % (hours, minutes, seconds,len(optimizer.get_weights())))
             if not opl:
                 if ol>=2:
                     print("\n Trying to Load optimizer\n")
@@ -166,11 +166,11 @@ while True:  # Run until solved
                             wts = pickle.load(f)
                         with open("./qvf.pkl",'rb') as f:
                             idk__ = pickle.load(f)
-                        with open('otdp.pkl','rb') as f:
+                        '''with open('otdp.pkl','rb') as f:
                             m = pickle.load(f)
-                            action_history,state_history,state_next_history,rewards_history,done_history,episode_reward_history,deaths,running_reward,episode_count,frame_count = m
-                        nopt = keras.optimizers.Adam.from_config(idk__)
-                        nopt.set_weights(wts)
+                            action_history,state_history,state_next_history,rewards_history,done_history,episode_reward_history,deaths,running_reward,episode_count,frame_count = m'''
+                                                
+                        optimizer.set_weights(wts)
                         print("\nOptimizer loaded\n")
                         a = keras.models.load_model('./mod1/m1.h5')
                         b = keras.models.load_model('./mod2/m2.h5')
@@ -181,7 +181,6 @@ while True:  # Run until solved
                         mtot=1
                         model=a
                         model_target=b
-                        optimizer=nopt
                     except Exception as e:
                         opl=False
                         model = a_model
@@ -263,8 +262,8 @@ while True:  # Run until solved
             model_target.set_weights(model.get_weights())
             # Log details
             mrh_ = np.mean(rewards_history)
-            template = "avg rew: {0:.2f} at episode {1}, frame count {2},Num rand frame: {3}, reward: {4:.2f},snake size:{5},epsilon:{6:0.2f},deaths: {7},current save:{8} ,max_size:{9}, max num of frame:{10}"
-            print(template.format(mrh_, episode_count, frame_count,rfc,reward,snake_size,epsilon,deaths,msnk,mtot,max_f_d))
+            template = "avg rew: {:.2f} at episode {}, frame count {},Num rand frame: {}, reward: {:.2f}, snake size:{}, Timstep: {}, epsilon:{:0.2f}, Deaths: {},current save:{} ,max_size:{}, max num of frame:{}"
+            print(template.format(mrh_, episode_count, frame_count,rfc,reward,snake_size,timestep,epsilon,deaths,msnk,mtot,max_f_d))
 
         # Limit the state and reward history
         if len(rewards_history) > max_memory_length:
