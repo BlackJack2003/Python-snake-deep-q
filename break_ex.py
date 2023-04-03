@@ -35,8 +35,8 @@ def create_q_model():
     # Network defined by the Deepmind paper
     inputs = layers.Input(shape=(snake.size,snake.size,2,))
     # Convolutions on the frames on the screen
-    layer1 = layers.Conv2D(32, 2, strides=4, activation="relu")(inputs)
-    layer2 = layers.Conv2D(64, 2, strides=2, activation="relu")(layer1)
+    layer1 = layers.Conv2D(32, 1, strides=1, activation="relu")(inputs)
+    layer2 = layers.Conv2D(64, 1, strides=1, activation="relu")(layer1)
     layer3 = layers.Conv2D(64, 1, strides=1, activation="relu")(layer2)
     layer4 = layers.Flatten()(layer3)
     layer5 = layers.Dense(512, activation="relu")(layer4)
@@ -72,8 +72,8 @@ epsilon_random_frames = 1000
 # Number of frames for exploration
 epsilon_greedy_frames = 5000
 # Maximum replay length
-# Note: The Deepmind paper suggests 1000000 however this causes memory issues
-max_memory_length = 25000
+# Note: The Deepmind paper suggests 10_00_000 however this causes memory issues
+max_memory_length = 10000
 # Train the model after 4 actions
 update_after_actions = 4
 ol = 0
@@ -126,8 +126,12 @@ def save_t():
 csh = 1
 
 if len(argv)>1:
-    opl=True
-    print("\nLoading new neural network...\n")
+    if argv[1]=="-rm":
+        opl=True
+        print("\nLoading new neural network...\n")
+    else:
+        print("Use -rm for new neural network")
+        quit()
 
 def handle_exit(signum,frame):
     res = input("Save the data points(y/n):")

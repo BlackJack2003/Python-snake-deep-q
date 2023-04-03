@@ -3,15 +3,15 @@ import random
 import turtle,time
 
 size= 40
-
+sq2 = np.sqrt(2)
 hlook = np.array([255,255])
 flook = np.array([0,255])
 blook=np.array([255,0])
 blank=np.array([0,0])
 
 if __name__ =="__main__":
-    size=10
-    fposy = [(5,5),(0,0),(6,6),(5,6),(6,7),(0,0)]
+    size=30
+    fposy = [(5,5),(3,3),(6,6),(5,6),(6,7),(0,0)]
 
 rf = 10/(2*size -1)
 
@@ -26,6 +26,24 @@ class player:
         self.py =y
 
 class snake_board:
+    #1 head,2 fruit,3 body,4 blank
+    def setzone(self,x,y,t):
+        if x>size-1 or y>size-1 or x<1 or y<1:
+            print("out of bound")
+            quit()
+        if t==1:
+            i,j = 255,255
+        elif t==2:
+            i,j= 0,255
+        elif t==3:
+            i,j=255,0
+        else:
+            i,j=0,0
+        for _ in range(-1,2):
+            for __ in range(-1,2):
+                self.board[x+_][y+__][0]=i
+                self.board[x+_][y+__][1]=j
+
     def elpepe(self)->tuple:
         m = self.fpos[0]
         self.fpos.pop(0)
@@ -34,22 +52,21 @@ class snake_board:
     def pepe(self):
         m,k = random.randint(0,size-1),random.randint(0,size-1)
         while self.board[m][k][0]!=0:
-            m,k = random.randint(0,size-1),random.randint(0,size-1)
+            m,k = random.randint(1,size-2),random.randint(1,size-2)
         return m,k
 
     def __init__(self,fpos=None):
         self.h = player()
         self.board = np.zeros((size,size,2),dtype=np.int16)
         self.segs = [self.h]
-        self.board[self.h.cx][self.h.cy][0]=255
-        self.board[self.h.cx][self.h.cy][1]=255
+        self.setzone(self.h.cx,self.h.cy,0)
         if fpos==None:
             self.getfrp = lambda:self.pepe() 
         else:
             self.fpos = fpos
             self.getfrp = lambda: self.elpepe()
         self.fx,self.fy = self.getfrp()
-        self.board[self.fx][self.fy][1]=255
+        self.setzone(self.fx,self.fy,2)
         self.ps=abs(self.fx-self.h.cx) + abs(self.fy-self.h.cy)
         self.size=1
         self.pd = -1
@@ -59,18 +76,23 @@ class snake_board:
         cx = self.h.cx
         cy = self.h.cy
         for m in range(1,len(self.segs)):
-            if self.segs[m].cx == cx and self.segs[m].cy == cy:
+            ch_x = abs(self.segs[m].cx -cx)
+            ch_y = abs(self.segs[m].cy-cy)
+            if (ch_x < 3 and ch_y < 3):
                 return True
         return False
     
     def check_eat(self)->bool:
-        m = bool(self.h.cx==self.fx and self.h.cy==self.fy)
+        ch_x = abs(self.fx -self.h.cx)
+        ch_y = abs(self.fy-self.h.cy)    
+        m = bool(ch_x < 3 and ch_y < 3)
         if m:
+            self.setzone(self.fx,self.fy,4)
             self.fx,self.fy = self.getfrp()
-            self.board[self.fx][self.fy][1]=255
+            self.setzone(self.fx,self.fy,2)
+            self.setzone(self.h.cx,self.h.cy,1)
             last = self.segs[-1]
-            self.board[last.px][last.py][0]=255
-            self.board[last.px][last.py][1]=255
+            self.setzone(last.px,last.py,3)
             self.segs.append(player(last.px,last.py))
             self.size+=1
         return m
@@ -78,36 +100,38 @@ class snake_board:
     #0 up,1 down 2 left 3 right
     def move(self,dd:int):
         if dd==0:
-            dirx=1
+            dirx=3
             diry=0
         elif dd==1:
-            dirx=-1
+            dirx=-3
             diry=0
         elif dd==2:
             dirx=0
-            diry=1
+            diry=3
         elif dd==3:
             dirx=0
-            diry=-1
+            diry=-3
         else:
             raise InvalidInputError
         self.h.px=self.h.cx
         self.h.py=self.h.cy
         self.h.cx-=dirx
         self.h.cy-=diry
-        if self.h.cx < 0:
-            self.h.cx=size-1
-        elif self.h.cx > size-1:
-            self.h.cx=0
-        elif self.h.cy<0:
-            self.h.cy=size-1
-        elif self.h.cy> size-1:
-            self.h.cy=0
+        if self.h.cx < 1:
+            self.h.cx=size-2
+        elif self.h.cx > size-2:
+            self.h.cx=1
+        elif self.h.cy<1:
+            self.h.cy=size-2
+        elif self.h.cy> size-2:
+            self.h.cy=1
         #check for border collision
         #trailing segments occupy the preceeding ones place
-        self.board[self.h.cx][self.h.cy][0]=255
+        """self.board[self.h.cx][self.h.cy][0]=255
         self.board[self.h.cx][self.h.cy][1]=255
-        self.board[self.h.px][self.h.py][1]=0
+        self.board[self.h.px][self.h.py][1]=0"""
+        self.setzone(self.h.cx, self.h.cy,1)
+        self.setzone(self.h.px, self.h.py,3)
         m=0
         for m in range(1,len(self.segs)):
             self.segs[m].px=self.segs[m].cx
@@ -115,7 +139,7 @@ class snake_board:
             self.segs[m].cx = self.segs[m-1].px
             self.segs[m].cy = self.segs[m-1].py
         #set last ones position as free
-        self.board[self.segs[-1].px][self.segs[-1].py][0]=0
+        self.setzone(self.segs[-1].px,self.segs[-1].py,4)
     
     def step(self,action:int):
         self.move(action)
@@ -124,7 +148,7 @@ class snake_board:
         d = self.check_death() 
         _ =abs(self.fx-self.h.cx) + abs(self.fy-self.h.cy)
         if eat==True:
-            rew=1
+            rew=2
         if d:
             rew=-2
         else:
@@ -137,15 +161,14 @@ class snake_board:
         self.board = np.zeros((size,size,2),dtype=np.int16)
         m = np.ones(size,dtype=np.int16)
         self.segs = [self.h]
-        self.board[self.h.cx][self.h.cy][0]=255
-        self.board[self.h.cx][self.h.cy][1]=255
+        self.setzone(self.h.cx,self.h.cy,0)
         if fpos==None:
             self.getfrp = lambda:self.pepe()
         else:
             self.fpos=fpos
             self.getfrp=lambda:self.elpepe()
         self.fx,self.fy = self.getfrp()
-        self.board[self.fx][self.fy][1]=255
+        self.setzone(self.fx,self.fy,2)
         self.ps=abs(self.fx-self.h.cx) + abs(self.fy-self.h.cy)
         self.size=1
         self.timestep=0
@@ -224,7 +247,7 @@ if __name__ =="__main__":
     env = snake_board()
     env.reset(fposy)
     #0 up,1 down 2 left 3 right
-    k =(0,2,0,2,0,2,0,2,0,2,0,2,2,0)
+    k =(0,2,0,2,0,2,0,2,0,2,0,2,2,0,2)
     for m in k:
         env.step(m)
         print(env)

@@ -70,7 +70,7 @@ class snake_board:
             self.board[self.fx][self.fy][1]=255
             last = self.segs[-1]
             self.board[last.px][last.py][0]=255
-            self.board[last.px][last.py][1]=255
+            self.board[last.px][last.py][1]=0
             self.segs.append(player(last.px,last.py))
             self.size+=1
         return m

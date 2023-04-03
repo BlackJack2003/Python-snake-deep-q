@@ -1,10 +1,11 @@
-import snake
+import snake_realist as snake
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from keras import layers
 from sys import argv
-import time
+import time 
+import signal
 import pickle
 
 stime=time.time()
@@ -18,12 +19,13 @@ epsilon_min = 0.1  # Minimum epsilon greedy parameter
 epsilon_max = 0.8  # Maximum epsilon greedy parameter
 epsilon_interval = (epsilon_max - epsilon_min)  # Rate at which to reduce chance of random action being taken
 batch_size = 32  # Size of batch taken from replay buffer
-max_steps_per_episode = 2000
+max_steps_per_episode = 1500
 rfc=0
 ph=0
-fpos = [(1,1),(1,snake.size-2),(snake.size-2,1),(snake.size-2,snake.size-2),(snake.size//2,snake.size//2),(1,1),(1,snake.size-2),(snake.size-1,0),(snake.size-1,snake.size-1),(0,0)]
-# Use the Baseline Atari environment because of Deepmind helper functions
-env = snake.snake_board(fpos=fpos)
+fpos = [(2,2),(2,snake.size-2),(snake.size-3,snake.size-3),(snake.size-2,2),(snake.size//2,snake.size//2),(2,2),(2,snake.size-2),(snake.size-1,2),(snake.size-2,snake.size-2),(2,2)]
+# Use the Baseline Atari environment because of Deepmind helper functions]
+m = fpos.copy()
+env = snake.snake_board(fpos=m)
 # Warp the frames, grey scale, stake four frame and scale to smaller ratio
 
 num_actions = 4
@@ -32,18 +34,15 @@ def create_q_model():
     # Network defined by the Deepmind paper
     inputs = layers.Input(shape=(snake.size,snake.size,2,))
     # Convolutions on the frames on the screen
-    layer1 = layers.Conv2D(16, 8, strides=4, activation="relu")(inputs)
-    layer2 = layers.Conv2D(32, 4, strides=2, activation="relu")(layer1)
-    layer3 = layers.Conv2D(32, 3, strides=1, activation="relu")(layer2)
-
+    layer1 = layers.Conv2D(32, 3, strides=2, activation="relu")(inputs)
+    layer2 = layers.Conv2D(64, 3, strides=2, activation="relu")(layer1)
+    layer3 = layers.Conv2D(64, 3, strides=2, activation="relu")(layer2)
     layer4 = layers.Flatten()(layer3)
-
-    layer5 = layers.Dense(256, activation="relu")(layer4)
-    action = layers.Dense(num_actions, activation="linear")(layer5)
+    layer5 = layers.Dense(512, activation="relu")(layer4)
+    layer6 = layers.Dense(128, activation="relu")(layer5)
+    action = layers.Dense(num_actions, activation="linear")(layer6)
 
     return keras.Model(inputs=inputs, outputs=action)
-
-
 
 # The first model makes the predictions for Q-values which are used to
 # make a action.
@@ -66,38 +65,54 @@ running_reward = 0
 episode_count = 0
 frame_count = 0
 # Number of frames to take random action and observe output
-epsilon_random_frames = 10000
+epsilon_random_frames = 1000
 # Number of frames for exploration
-epsilon_greedy_frames = 20000
+epsilon_greedy_frames = 5000
 # Maximum replay length
-# Note: The Deepmind paper suggests 1000000 however this causes memory issues
-max_memory_length = 20000
+# Note: The Deepmind paper suggests 10_00_000 however this causes memory issues
+max_memory_length = 10000
 # Train the model after 4 actions
 update_after_actions = 4
-ol = False
+ol = 0
+opl = False
 # How often to update the target network
-update_target_network = 1000
+update_target_network = 900
 # Using huber loss for stability
 msnk=1
 pmsnk = 1
 mtot=1
 loss_function = keras.losses.Huber()
 pshow =0
+max_f_d=0
 updated_q_values = []
-
+psize=1
 optimizer = keras.optimizers.Adam(learning_rate=0.00025, clipnorm=1.0)
+slen = 0
+
+snake_size=1
 
 try:
+    with open('./op1.pkl','rb') as f:
+        wts = pickle.load(f)
+    with open("./qvf.pkl",'rb') as f:
+        idk__ = pickle.load(f)
+    with open('./sample.pkl','rb') as f:
+        m = pickle.load(f)
+    optimizer.apply_gradients(m)                        
+    optimizer.set_weights(wts)
+    print("\nOptimizer loaded\n")
     a = keras.models.load_model('./mod1f/m1.h5')
     b = keras.models.load_model('./mod2f/m2.h5')
     epsilon_random_frames/=10
+    print("\nLoaded Models Succesfully\n")
+    msnk=1
+    pmsnk = 1
+    mtot=1
     model=a
     model_target=b
-    print("\nLoaded Models Succesfully\n")
 except Exception as e:
-    print('no save found due to:',e)
-    
-snake_size=1
+    print("\nOptimizer and model not loaded due to:\n"+str(e))
+    quit()
 
 def eval_mod():
     fp =[(0,0),(snake.size//2,snake.size//2)]
@@ -119,21 +134,48 @@ def eval_mod():
 def save_t():
     model.save("./mod1f/m1.h5")
     model_target.save("./mod2f/m2.h5")
+    with open('./op1.pkl', 'wb') as f:
+        m = optimizer.get_weights()
+        print(f"Length of weights:{len(m)}")
+        pickle.dump(m,f)
+    with open("./qvf.pkl",'wb') as f:
+        pickle.dump(optimizer.get_config(),f)
+
+csh = 1
+
+if len(argv)>1:
+    if argv[1]=="-rm":
+        opl=True
+        print("\nLoading new neural network...\n")
+    else:
+        print("Use -rm for new neural network")
+        quit()
+
+def handle_exit(signum,frame):
+    res = input("Save the data points(y/n):")
+    if res.lower()=="y":
+        save_t()
+    quit()
+
+signal.signal(signal.SIGINT, handle_exit)
 
 while True:  # Run until solved
     m = fpos.copy()
     state = np.array(env.reset(m))
     episode_reward = 0
+    csh = 1
     for timestep in range(1, max_steps_per_episode):
         # env.render(); Adding this line would show the attempts
         # of the agent in a pop up window.
         if frame_count%10000==0:
-            save_t()
+            if opl:
+                print("\nSaving model...\n")
+                save_t()
             msnk=1 #max size in save
             seconds = time.time()-stime
             minutes, seconds = divmod(seconds, 60)
             hours, minutes = divmod(minutes, 60)
-            print("saving model...\nCurrent Run Time:%d:%02d:%02d" % (hours, minutes, seconds))
+            print("\nCurrent Run Time:%d:%02d:%02d\nLength of optimizer weights:%d\n" % (hours, minutes, seconds,len(optimizer.get_weights())))                
         frame_count += 1
         if frame_count < epsilon_random_frames or epsilon > np.random.rand(1)[0]:
             if epsilon>1:
@@ -154,12 +196,9 @@ while True:  # Run until solved
         epsilon = max(epsilon, epsilon_min)
         # Apply the sampled action in our environment
         state_next, reward, done, snake_size = env.step(action)
-
         msnk = max(msnk,snake_size)
-        if mtot<snake_size:
-            mtot=snake_size
-            reward+=200
-        
+        mtot = max(mtot,snake_size)
+        max_f_d = max(timestep,max_f_d)
         state_next = np.array(state_next)
         episode_reward += reward
         # Save actions and states in replay buffer
@@ -173,7 +212,6 @@ while True:  # Run until solved
         if frame_count % update_after_actions == 0 and len(done_history) > batch_size:
             # Get indices of samples for replay buffers
             indices = np.random.choice(range(len(done_history)), size=batch_size)
-
             # Using list comprehension to sample from replay buffer
             state_sample = np.array([state_history[i] for i in indices])
             state_next_sample = np.array([state_next_history[i] for i in indices])
@@ -184,9 +222,7 @@ while True:  # Run until solved
             # Use the target model for stability
             future_rewards = model_target.predict(state_next_sample,verbose=0)
             # Q value = reward + discount factor * expected future reward
-            updated_q_values = rewards_sample + gamma * tf.reduce_max(
-                future_rewards, axis=1)
-
+            updated_q_values = rewards_sample + gamma * tf.reduce_max(future_rewards, axis=1)
             # If final frame set the last value to -1
             updated_q_values = updated_q_values * (1 - done_sample) - done_sample
 
@@ -204,14 +240,19 @@ while True:  # Run until solved
             # Backpropagation
             grads = tape.gradient(loss, model.trainable_variables)
             optimizer.apply_gradients(zip(grads, model.trainable_variables))
+            if len(optimizer.get_weights())>25:
+                with open("./sample.pkl","wb") as f:
+                    pickle.dump(zip(grads, model.trainable_variables),f)
+                    print("saving sample")
+                    quit()
 
         if frame_count % update_target_network == 0:
             # update the the target network with new weights
             model_target.set_weights(model.get_weights())
             # Log details
             mrh_ = np.mean(rewards_history)
-            template = "avg rew: {0:.2f} at episode {1}, frame count {2},Num rand frame: {3}, reward: {4:.2f},snake size:{5},epsilon:{6:0.4f},deaths: {7},current save:{8} ,max_size:{9}"
-            print(template.format(mrh_, episode_count, frame_count,rfc,reward,snake_size,epsilon,deaths,msnk,mtot))
+            template = "avg rew: {:.2f} at episode {}, frame count {},Num rand frame: {}, reward: {:.2f}, snake size:{}, Timstep: {}, epsilon:{:0.2f}, Deaths: {},current save:{} ,max_size:{}, max num of frame:{}, pszie: {}"
+            print(template.format(mrh_, episode_count, frame_count,rfc,reward,snake_size,timestep,epsilon,deaths,msnk,mtot,max_f_d,psize))
 
         # Limit the state and reward history
         if len(rewards_history) > max_memory_length:
@@ -220,10 +261,12 @@ while True:  # Run until solved
             del state_next_history[:1]
             del action_history[:1]
             del done_history[:1]
-        if done==True:
+        if done:
             deaths+=1
             break
+            
     # Update running reward to check condition for solving
+    psize=snake_size
     episode_reward_history.append(episode_reward)
     if len(episode_reward_history) > 100:
         del episode_reward_history[:1]
@@ -236,9 +279,9 @@ while True:  # Run until solved
                 strike+=1
     psnk=msnk
     episode_count += 1
-    if snake_size>=len(fpos)-1 if fpos!=None else 5:  # Condition to consider the task solved
+    if snake_size>5 if fpos!=None else 5:  # Condition to consider the task solved
         save_t()
-        print("Solved at episode {}!".format(episode_count))
+        print("Solved at episode {}! at action number {} with snake size: {}".format(episode_count,timestep,snake_size))
         break
 
 
