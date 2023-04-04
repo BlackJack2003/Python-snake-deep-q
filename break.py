@@ -4,8 +4,8 @@ import tensorflow as tf
 from tensorflow import keras
 from keras import layers
 from sys import argv
-import time 
-import signal
+import time,random
+import signal,os
 import pickle
 
 stime=time.time()
@@ -19,7 +19,7 @@ epsilon_min = 0.01  # Minimum epsilon greedy parameter
 epsilon_max = 0.8  # Maximum epsilon greedy parameter
 epsilon_interval = (epsilon_max - epsilon_min)  # Rate at which to reduce chance of random action being taken
 batch_size = 32  # Size of batch taken from replay buffer
-max_steps_per_episode = 500
+max_steps_per_episode = 700
 rfc=0
 ph=0
 fpos = [(2,2),(2,snake.size-2),(snake.size-3,snake.size-3),(snake.size-3,3),(snake.size//2,snake.size//2),(2,2),(3,snake.size-3),(snake.size-3,2),(snake.size-2,snake.size-2),(2,2)]
@@ -65,9 +65,9 @@ running_reward = 0
 episode_count = 0
 frame_count = 0
 # Number of frames to take random action and observe output
-epsilon_random_frames = 1000
+epsilon_random_frames = 2000
 # Number of frames for exploration
-epsilon_greedy_frames = 5000
+epsilon_greedy_frames = 8000
 # Maximum replay length
 # Note: The Deepmind paper suggests 10_00_000 however this causes memory issues
 max_memory_length = 10000
@@ -163,7 +163,10 @@ if "-rm" in argv:
 else:
     l_mod()
 if "-rand" in argv:
-    fpos=None
+    nfpos = []
+    for m in range(16):
+        nfpos.append((random.randint(2,snake.size-2),random.randint(2,snake.size-2)))
+    fpos=nfpos
 else:
     print("Use -rm for new neural network -rop for new optimizer -rand for random locations...")
 
@@ -298,8 +301,11 @@ while True:  # Run until solved
                 strike+=1
     psnk=msnk
     episode_count += 1
-    if snake_size>size_to_win:  # Condition to consider the task solved
+    if snake_size>15:  # Condition to consider the task solved
         save_t()
         print("Solved at episode {}! at action number {} with snake size: {}".format(episode_count,timestep,snake_size))
-        eval_mod(action_history[-timestep:])
+        #eval_mod(action_history[-timestep:])
+        with open("showff.pkl","wb") as f:
+            pickle.dump((action_history[-timestep:],fpos),f)
+        os.system("shutdown")
         break

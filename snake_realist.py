@@ -48,6 +48,9 @@ class snake_board:
     def elpepe(self)->tuple:
         m = self.fpos[0]
         self.fpos.pop(0)
+        if len(self.fpos)==1:
+            for m in range(8):
+                self.fpos.append((random.randint(2,size-2),random.randint(2,size-2)))
         return m
 
     def pepe(self):
@@ -148,9 +151,9 @@ class snake_board:
         #self.timestep+=1
         _ =abs(self.fx-self.h.cx) + abs(self.fy-self.h.cy)
         if eat==True:
-            rew=1
+            rew=2
         if d:
-            rew=-2
+            rew=-4
         else:
             rew= 1 if _ < self.ps else -1
         self.ps = _
