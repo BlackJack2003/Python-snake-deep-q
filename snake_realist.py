@@ -8,10 +8,11 @@ hlook = np.array([255,255])
 flook = np.array([0,255])
 blook=np.array([255,0])
 blank=np.array([0,0])
+bdc = True
 
 if __name__ =="__main__":
     size=30
-    fposy = [(5,5),(3,3),(6,6),(5,6),(6,7),(0,0)]
+    fposy = [(5,5),(3,3),(6,6),(5,6),(6,7),(5,5)]
 
 rf = 10/(2*size -1)
 
@@ -19,7 +20,7 @@ class InvalidInputError(Exception):
     print("Invalid Input val")
     
 class player:
-    def __init__(self,x=size//2 +1,y=size//2 + 1):
+    def __init__(self,x=size//2,y=size//2):
         self.cx = x
         self.cy = y
         self.px =x
@@ -29,7 +30,7 @@ class snake_board:
     #1 head,2 fruit,3 body,4 blank
     def setzone(self,x,y,t):
         if x>size-1 or y>size-1 or x<1 or y<1:
-            print("out of bound")
+            print(f"out of bound de to x:{x},y:{y},t:{t}\n1 head,2 fruit,3 body,4 blank")
             quit()
         if t==1:
             i,j = 255,255
@@ -50,9 +51,9 @@ class snake_board:
         return m
 
     def pepe(self):
-        m,k = random.randint(0,size-1),random.randint(0,size-1)
+        m,k = random.randint(2,size-2),random.randint(2,size-2)
         while self.board[m][k][0]!=0:
-            m,k = random.randint(1,size-2),random.randint(1,size-2)
+            m,k = random.randint(2,size-2),random.randint(2,size-2)
         return m,k
 
     def __init__(self,fpos=None):
@@ -70,11 +71,14 @@ class snake_board:
         self.ps=abs(self.fx-self.h.cx) + abs(self.fy-self.h.cy)
         self.size=1
         self.pd = -1
-        self.timestep=0
-
+        self.pmove=0
+        #self.timestep=0
+        
     def check_death(self)->bool:
         cx = self.h.cx
         cy = self.h.cy
+        if self.h.cx < 1 or self.h.cx > size-2 or self.h.cy<1 or self.h.cy > size-2:
+            return True
         for m in range(1,len(self.segs)):
             ch_x = abs(self.segs[m].cx -cx)
             ch_y = abs(self.segs[m].cy-cy)
@@ -97,7 +101,7 @@ class snake_board:
             self.size+=1
         return m
     
-    #0 up,1 down 2 left 3 right
+    #0 up,1 down, 2 left 3 right
     def move(self,dd:int):
         if dd==0:
             dirx=3
@@ -117,14 +121,9 @@ class snake_board:
         self.h.py=self.h.cy
         self.h.cx-=dirx
         self.h.cy-=diry
-        if self.h.cx < 1:
-            self.h.cx=size-2
-        elif self.h.cx > size-2:
-            self.h.cx=1
-        elif self.h.cy<1:
-            self.h.cy=size-2
-        elif self.h.cy> size-2:
-            self.h.cy=1
+        d = self.check_death()
+        if d:
+            return True
         #check for border collision
         #trailing segments occupy the preceeding ones place
         """self.board[self.h.cx][self.h.cy][0]=255
@@ -140,15 +139,16 @@ class snake_board:
             self.segs[m].cy = self.segs[m-1].py
         #set last ones position as free
         self.setzone(self.segs[-1].px,self.segs[-1].py,4)
+        self.pmove=dd
+        return False
     
     def step(self,action:int):
-        self.move(action)
+        d = self.move(action)
         eat = self.check_eat()
-        self.timestep+=1
-        d = self.check_death() 
+        #self.timestep+=1
         _ =abs(self.fx-self.h.cx) + abs(self.fy-self.h.cy)
         if eat==True:
-            rew=2
+            rew=1
         if d:
             rew=-2
         else:
@@ -171,10 +171,13 @@ class snake_board:
         self.setzone(self.fx,self.fy,2)
         self.ps=abs(self.fx-self.h.cx) + abs(self.fy-self.h.cy)
         self.size=1
-        self.timestep=0
+        #self.timestep=0
         return self.board
     
     def render(self,actions,fpos):
+        global bdc
+        bdc = True
+        bdd={True:"black",False:"green"}
         k = size*10
         wn = turtle.Screen()
         wn.tracer(0)
@@ -187,37 +190,40 @@ class snake_board:
         head.penup()
         head.setpos((self.h.cy*20)-k,(-20*self.h.cx)+k)
         head.shape('square')
-        head.color('black')
+        head.color('red')
+        head.shapesize(3)
         segs=[head]
         food = turtle.Turtle()
         food.shape('square')
         food.color('blue')
+        food.shapesize(3)
         food.penup()
         food.setpos((self.fy*20)-k,(self.fx*-20)+k)
         def add_seg(x,y):
+            global bdc
             seg1 = turtle.Turtle()
             seg1.shape('square')
-            seg1.color('black')
+            seg1.color(bdd[bdc])
+            bdc = not bdc
+            seg1.shapesize(3)
             seg1.penup()
             seg1.goto(x,y)
             return seg1
         k_ = len(actions)
         for _ in range(len(actions)):
-            self.step(actions[_])
+            a1,a2,a3,a4 = self.step(actions[_])
             food.setpos((self.fy*20)-k,(self.fx*-20)+k)
             if len(self.segs)>len(segs):
                 segs.append(add_seg((self.segs[-1].cy*20)-k,(self.segs[-1].cx*-20)+k))
             for i,v in enumerate(self.segs):
                 segs[i].setpos((v.cy*20)-k,(v.cx*-20)+k)
-            print("Remianing:"+str(k_-_)+" Fpos:"+str(self.fy)+","+str(self.fx))
+            print("Remianing:"+str(k_)+" Fpos:"+str(self.fy)+","+str(self.fx),",pos:",str(self.h.cx),",",str(self.h.cy),", reward:",str(a2))
             k_-=1
             time.sleep(0.5)
             wn.update()
-        _ = input()
         turtle.bye()
     
     def __str__(self)->str:
-
         tot = "\n    "
         for i in range(size):
             tot+=' '+str(i)

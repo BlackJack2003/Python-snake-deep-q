@@ -15,16 +15,16 @@ strike=0
 seed = 42
 gamma = 0.99  # init at .99 try reducing Discount factor for past rewards
 epsilon = 1.0  # Epsilon greedy parameter
-epsilon_min = 0.1  # Minimum epsilon greedy parameter
+epsilon_min = 0.01  # Minimum epsilon greedy parameter
 epsilon_max = 0.8  # Maximum epsilon greedy parameter
 epsilon_interval = (epsilon_max - epsilon_min)  # Rate at which to reduce chance of random action being taken
 batch_size = 32  # Size of batch taken from replay buffer
-max_steps_per_episode = 1500
+max_steps_per_episode = 500
 rfc=0
 ph=0
-fpos = [(2,2),(2,snake.size-2),(snake.size-3,snake.size-3),(snake.size-2,2),(snake.size//2,snake.size//2),(2,2),(2,snake.size-2),(snake.size-1,2),(snake.size-2,snake.size-2),(2,2)]
+fpos = [(2,2),(2,snake.size-2),(snake.size-3,snake.size-3),(snake.size-3,3),(snake.size//2,snake.size//2),(2,2),(3,snake.size-3),(snake.size-3,2),(snake.size-2,snake.size-2),(2,2)]
 # Use the Baseline Atari environment because of Deepmind helper functions]
-m = fpos.copy()
+m = fpos.copy() if fpos!=None else None
 env = snake.snake_board(fpos=m)
 # Warp the frames, grey scale, stake four frame and scale to smaller ratio
 
@@ -88,48 +88,53 @@ updated_q_values = []
 psize=1
 optimizer = keras.optimizers.Adam(learning_rate=0.00025, clipnorm=1.0)
 slen = 0
+timestep =0
 
 snake_size=1
 
-try:
-    with open('./op1.pkl','rb') as f:
-        wts = pickle.load(f)
-    with open("./qvf.pkl",'rb') as f:
-        idk__ = pickle.load(f)
-    with open('./sample.pkl','rb') as f:
-        m = pickle.load(f)
-    optimizer.apply_gradients(m)                        
-    optimizer.set_weights(wts)
-    print("\nOptimizer loaded\n")
-    a = keras.models.load_model('./mod1f/m1.h5')
-    b = keras.models.load_model('./mod2f/m2.h5')
-    epsilon_random_frames/=10
-    print("\nLoaded Models Succesfully\n")
-    msnk=1
-    pmsnk = 1
-    mtot=1
-    model=a
-    model_target=b
-except Exception as e:
-    print("\nOptimizer and model not loaded due to:\n"+str(e))
-    quit()
+def l_opt():
+    global optimizer
+    try:
+        with open('./op1.pkl','rb') as f:
+            wts = pickle.load(f)
+        with open("./qvf.pkl",'rb') as f:
+            idk__ = pickle.load(f)
+        with open('./sample.pkl','rb') as f:
+            m = pickle.load(f)
+        optimizer.apply_gradients(m)
+        optimizer.set_weights(wts)
+        print("\nOptimizer loaded\n")
+    except Exception as e:
+        print("\nOptimizer and model not loaded due to:\n"+str(e))
 
-def eval_mod():
-    fp =[(0,0),(snake.size//2,snake.size//2)]
-    _ = env.reset()
-    __ = []
-    for i in range(100):
-        state_tensor = tf.convert_to_tensor(_)
-        state_tensor = tf.expand_dims(state_tensor, 0)
-        action_probs = model(state_tensor, training=False)
-        # Take best action
-        action = tf.argmax(action_probs[0]).numpy()
-        __.append(action)
-        _, reward, done, snake_size = env.step(action)
-        if done:
-            break
-    
-    env.render(__,fpos=fp)
+def l_mod():
+    global model
+    global model_target
+    try:
+        a = keras.models.load_model('./mod1f/m1.h5')
+        b = keras.models.load_model('./mod2f/m2.h5')
+        epsilon_random_frames/=5
+        print("\nLoaded Models Succesfully\n")
+        msnk=1
+        pmsnk = 1
+        mtot=1
+        model=a
+        model_target=b
+    except Exception as e:
+        print("\nOptimizer and model not loaded due to:\n"+str(e))
+
+size_to_win = 4 if fpos==None else len(fpos)-3 
+
+def eval_mod(k:list):
+    global fpos
+    input("Show ?:")
+    env.render(k,fpos=fpos.copy())
+    k = input("Conitnue(Y/N):")
+    if k.lower()!="y":
+        quit()
+    else:
+        global size_to_win
+        size_to_win = min(size_to_win+1,8)
 
 def save_t():
     model.save("./mod1f/m1.h5")
@@ -140,27 +145,43 @@ def save_t():
         pickle.dump(m,f)
     with open("./qvf.pkl",'wb') as f:
         pickle.dump(optimizer.get_config(),f)
+    with open('./sample.pkl', 'wb') as f:
+        pickle.dump(zip(grads, model.trainable_variables),f)
 
 csh = 1
 
-if len(argv)>1:
-    if argv[1]=="-rm":
-        opl=True
-        print("\nLoading new neural network...\n")
-    else:
-        print("Use -rm for new neural network")
-        quit()
+if "-rop" in argv:
+    optimizer = keras.optimizers.Adam(learning_rate=0.00025, clipnorm=1.0)
+    print("\nLoading new optimizer...\n")
+else:
+    l_opt()
+if "-rm" in argv:
+    model = create_q_model()
+    model_target = create_q_model()
+    epsilon_random_frames*=5
+    print("\nLoading new neural network...\n")
+else:
+    l_mod()
+if "-rand" in argv:
+    fpos=None
+else:
+    print("Use -rm for new neural network -rop for new optimizer -rand for random locations...")
+
 
 def handle_exit(signum,frame):
-    res = input("Save the data points(y/n):")
+    res = input("Save(y/n):")
     if res.lower()=="y":
         save_t()
-    quit()
+        quit()
+    else:
+        quit()
 
 signal.signal(signal.SIGINT, handle_exit)
-
+relist = [(0,1),(1,0),(2,3),(3,2)]
+tlist = {0:2,1:3,2:0,3:1}
+paction = None
 while True:  # Run until solved
-    m = fpos.copy()
+    m= fpos.copy() if fpos!=None else None
     state = np.array(env.reset(m))
     episode_reward = 0
     csh = 1
@@ -181,6 +202,9 @@ while True:  # Run until solved
             if epsilon>1:
                 epsilon-=0.3
             action = np.random.choice(num_actions)
+            apa_pair = (action,paction)
+            if apa_pair in relist:
+                action = tlist[action]
             rfc+=1
         else:
             # Predict action Q-values
@@ -196,6 +220,7 @@ while True:  # Run until solved
         epsilon = max(epsilon, epsilon_min)
         # Apply the sampled action in our environment
         state_next, reward, done, snake_size = env.step(action)
+        paction = action
         msnk = max(msnk,snake_size)
         mtot = max(mtot,snake_size)
         max_f_d = max(timestep,max_f_d)
@@ -240,12 +265,6 @@ while True:  # Run until solved
             # Backpropagation
             grads = tape.gradient(loss, model.trainable_variables)
             optimizer.apply_gradients(zip(grads, model.trainable_variables))
-            if len(optimizer.get_weights())>25:
-                with open("./sample.pkl","wb") as f:
-                    pickle.dump(zip(grads, model.trainable_variables),f)
-                    print("saving sample")
-                    quit()
-
         if frame_count % update_target_network == 0:
             # update the the target network with new weights
             model_target.set_weights(model.get_weights())
@@ -279,9 +298,8 @@ while True:  # Run until solved
                 strike+=1
     psnk=msnk
     episode_count += 1
-    if snake_size>5 if fpos!=None else 5:  # Condition to consider the task solved
+    if snake_size>size_to_win:  # Condition to consider the task solved
         save_t()
         print("Solved at episode {}! at action number {} with snake size: {}".format(episode_count,timestep,snake_size))
+        eval_mod(action_history[-timestep:])
         break
-
-
