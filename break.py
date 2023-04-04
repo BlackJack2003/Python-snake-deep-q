@@ -110,6 +110,7 @@ def l_opt():
 def l_mod():
     global model
     global model_target
+    global epsilon_random_frames
     try:
         a = keras.models.load_model('./mod1f/m1.h5')
         b = keras.models.load_model('./mod2f/m2.h5')
@@ -164,7 +165,7 @@ else:
     l_mod()
 if "-rand" in argv:
     nfpos = []
-    for m in range(16):
+    for m in range(20):
         nfpos.append((random.randint(2,snake.size-2),random.randint(2,snake.size-2)))
     fpos=nfpos
 else:
