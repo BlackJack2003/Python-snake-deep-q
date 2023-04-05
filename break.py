@@ -1,4 +1,5 @@
 import snake_realist as snake
+import show
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
@@ -279,11 +280,11 @@ while True:  # Run until solved
 
         # Limit the state and reward history
         if len(rewards_history) > max_memory_length:
-            del rewards_history[:1]
-            del state_history[:1]
-            del state_next_history[:1]
-            del action_history[:1]
-            del done_history[:1]
+            del rewards_history[:timestep+2]
+            del state_history[:timestep+2]
+            del state_next_history[:timestep+2]
+            del action_history[:timestep+2]
+            del done_history[:timestep+2]
         if done:
             deaths+=1
             break
@@ -306,7 +307,11 @@ while True:  # Run until solved
         save_t()
         print("Solved at episode {}! at action number {} with snake size: {}".format(episode_count,timestep,snake_size))
         #eval_mod(action_history[-timestep:])
-        with open("showff.pkl","wb") as f:
+        with open("./showff.pkl","wb") as f:
             pickle.dump((action_history[-timestep:],fpos),f)
-        os.system("shutdown")
-        break
+        
+        try:
+            show.show()
+        except:
+            eval_mod(action_history[-timestep:])
+        #os.system("shutdown /s")

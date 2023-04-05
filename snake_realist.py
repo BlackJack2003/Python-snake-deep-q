@@ -155,7 +155,7 @@ class snake_board:
         if d:
             rew=-4
         else:
-            rew= 1 if _ < self.ps else -1
+            rew= 1 if _ < self.ps else -2
         self.ps = _
         return self.board,rew,d,self.size
     
