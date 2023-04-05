@@ -125,18 +125,32 @@ def l_mod():
     except Exception as e:
         print("\nOptimizer and model not loaded due to:\n"+str(e))
 
-size_to_win = 4 if fpos==None else len(fpos)-3 
+size_to_win = 8 if fpos==None else len(fpos)-3 
 
-def eval_mod(k:list):
+def eval_mod(k:list=None):
     global fpos
     input("Show ?:")
-    env.render(k,fpos=fpos.copy())
+    _= []
+    state = env.reset(fpos=fpos.copy())
+    for i in range(max_steps_per_episode):
+        state_tensor = tf.convert_to_tensor(state)
+        state_tensor = tf.expand_dims(state_tensor, 0)
+        action_probs = model(state_tensor, training=False)
+        # Take best action
+        action = tf.argmax(action_probs[0]).numpy()
+        state_next, reward, done, snake_size = env.step(action)
+        _.append(action)
+        state_next = np.array(state_next)
+        state_next = state
+        if done:
+            break
+    env.render(_,fpos=fpos.copy())
     k = input("Conitnue(Y/N):")
     if k.lower()!="y":
         quit()
     else:
         global size_to_win
-        size_to_win = min(size_to_win+1,8)
+        size_to_win = max(size_to_win+1,len(fpos))
 
 def save_t():
     model.save("./mod1f/m1.h5")
@@ -303,15 +317,14 @@ while True:  # Run until solved
                 strike+=1
     psnk=msnk
     episode_count += 1
-    if snake_size>15:  # Condition to consider the task solved
+    if snake_size>size_to_win:  # Condition to consider the task solved
         save_t()
         print("Solved at episode {}! at action number {} with snake size: {}".format(episode_count,timestep,snake_size))
         #eval_mod(action_history[-timestep:])
         with open("./showff.pkl","wb") as f:
             pickle.dump((action_history[-timestep:],fpos),f)
-        
         try:
-            show.show()
+            eval_mod()
         except:
-            eval_mod(action_history[-timestep:])
+            show.show()
         #os.system("shutdown /s")
