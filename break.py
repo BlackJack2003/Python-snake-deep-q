@@ -20,7 +20,7 @@ epsilon_min = 0.01  # Minimum epsilon greedy parameter
 epsilon_max = 0.8  # Maximum epsilon greedy parameter
 epsilon_interval = (epsilon_max - epsilon_min)  # Rate at which to reduce chance of random action being taken
 batch_size = 32  # Size of batch taken from replay buffer
-max_steps_per_episode = 700
+max_steps_per_episode = 100
 rfc=0
 ph=0
 fpos = [(2,2),(2,snake.size-2),(snake.size-3,snake.size-3),(snake.size-3,3),(snake.size//2,snake.size//2),(2,2),(3,snake.size-3),(snake.size-3,2),(snake.size-2,snake.size-2),(2,2)]
@@ -35,9 +35,9 @@ def create_q_model():
     # Network defined by the Deepmind paper
     inputs = layers.Input(shape=(snake.size,snake.size,2,))
     # Convolutions on the frames on the screen
-    layer1 = layers.Conv2D(32, 3, strides=2, activation="relu")(inputs)
-    layer2 = layers.Conv2D(64, 3, strides=2, activation="relu")(layer1)
-    layer3 = layers.Conv2D(64, 3, strides=2, activation="relu")(layer2)
+    layer1 = layers.Conv2D(32, 3, strides=1, activation="relu")(inputs)
+    layer2 = layers.Conv2D(64, 3, strides=1, activation="relu")(layer1)
+    layer3 = layers.Conv2D(64, 3, strides=1, activation="relu")(layer2)
     layer4 = layers.Flatten()(layer3)
     layer5 = layers.Dense(512, activation="relu")(layer4)
     layer6 = layers.Dense(128, activation="relu")(layer5)
@@ -102,6 +102,7 @@ def l_opt():
             idk__ = pickle.load(f)
         with open('./sample.pkl','rb') as f:
             m = pickle.load(f)
+        optimizer.from_config(idk__)
         optimizer.apply_gradients(m)
         optimizer.set_weights(wts)
         print("\nOptimizer loaded\n")
@@ -123,16 +124,16 @@ def l_mod():
         model=a
         model_target=b
     except Exception as e:
-        print("\nOptimizer and model not loaded due to:\n"+str(e))
+        print("\nModel not loaded due to:\n"+str(e))
 
-size_to_win = 8 if fpos==None else len(fpos)-3 
+size_to_win = 16 if fpos==None else len(fpos)-3 
 
 def eval_mod(k:list=None):
     global fpos
     input("Show ?:")
     _= []
     state = env.reset(fpos=fpos.copy())
-    for i in range(max_steps_per_episode):
+    for i in range(max_steps_per_episode//2):
         state_tensor = tf.convert_to_tensor(state)
         state_tensor = tf.expand_dims(state_tensor, 0)
         action_probs = model(state_tensor, training=False)
@@ -157,12 +158,15 @@ def save_t():
     model_target.save("./mod2f/m2.h5")
     with open('./op1.pkl', 'wb') as f:
         m = optimizer.get_weights()
-        print(f"Length of weights:{len(m)}")
+        print(f"Length of weights:{len(m)}\nModel trainable variables:{len(model.trainable_variables)}")
         pickle.dump(m,f)
     with open("./qvf.pkl",'wb') as f:
         pickle.dump(optimizer.get_config(),f)
-    with open('./sample.pkl', 'wb') as f:
-        pickle.dump(zip(grads, model.trainable_variables),f)
+    try:
+        with open('./sample.pkl', 'wb') as f:
+            pickle.dump(zip(grads, model.trainable_variables),f)
+    except:
+        pass
 
 csh = 1
 
@@ -180,12 +184,15 @@ else:
     l_mod()
 if "-rand" in argv:
     nfpos = []
-    for m in range(20):
+    for m in range(25):
         nfpos.append((random.randint(2,snake.size-2),random.randint(2,snake.size-2)))
     fpos=nfpos
+if "-trand" in argv:
+    fpos=None
 else:
     print("Use -rm for new neural network -rop for new optimizer -rand for random locations...")
 
+size_to_win = 16 if fpos==None else len(fpos)-3 
 
 def handle_exit(signum,frame):
     res = input("Save(y/n):")
@@ -199,7 +206,8 @@ signal.signal(signal.SIGINT, handle_exit)
 relist = [(0,1),(1,0),(2,3),(3,2)]
 tlist = {0:2,1:3,2:0,3:1}
 paction = None
-while True:  # Run until solved
+while True:
+    random.shuffle(fpos)     # Run until solved
     m= fpos.copy() if fpos!=None else None
     state = np.array(env.reset(m))
     episode_reward = 0
@@ -208,14 +216,13 @@ while True:  # Run until solved
         # env.render(); Adding this line would show the attempts
         # of the agent in a pop up window.
         if frame_count%10000==0:
-            if opl:
-                print("\nSaving model...\n")
-                save_t()
+            print("\nSaving model...\n")
+            save_t()
             msnk=1 #max size in save
             seconds = time.time()-stime
             minutes, seconds = divmod(seconds, 60)
             hours, minutes = divmod(minutes, 60)
-            print("\nCurrent Run Time:%d:%02d:%02d\nLength of optimizer weights:%d\n" % (hours, minutes, seconds,len(optimizer.get_weights())))                
+            print("\nCurrent Run Time:%d:%02d:%02d\n" % (hours, minutes, seconds))                
         frame_count += 1
         if frame_count < epsilon_random_frames or epsilon > np.random.rand(1)[0]:
             if epsilon>1:

@@ -46,10 +46,9 @@ class snake_board:
                 self.board[x+_][y+__][1]=j
 
     def elpepe(self)->tuple:
-        m = self.fpos[0]
-        self.fpos.pop(0)
+        m= self.fpos.pop(0)
         if len(self.fpos)<=2:
-            for m in range(8):
+            for _ in range(8):
                 self.fpos.append((random.randint(2,size-2),random.randint(2,size-2)))
         return m
 
@@ -61,6 +60,8 @@ class snake_board:
 
     def __init__(self,fpos=None):
         self.h = player()
+        self.action_space=4
+        self.state_space = (size,size,2,)
         self.board = np.zeros((size,size,2),dtype=np.int16)
         self.segs = [self.h]
         self.setzone(self.h.cx,self.h.cy,0)
@@ -151,11 +152,11 @@ class snake_board:
         #self.timestep+=1
         _ =abs(self.fx-self.h.cx) + abs(self.fy-self.h.cy)
         if eat:
-            rew=4
+            rew=10
         elif d:
-            rew=-6
+            rew=-50
         else:
-            rew= 1 if _ < self.ps else -2
+            rew= 1 if _ < self.ps else -5
         self.ps = _
         return self.board,rew,d,self.size
     
