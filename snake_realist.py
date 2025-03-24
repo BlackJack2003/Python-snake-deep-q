@@ -261,7 +261,3 @@ if __name__ =="__main__":
     for m in k:
         env.step(m)
         print(env)
-
-
-
-    
